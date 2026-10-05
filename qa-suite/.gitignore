@@ -1,0 +1,8 @@
+.env
+results/
+report*.html
+assets/
+__pycache__/
+.pytest_cache/
+*.pyc
+~$*.xlsx

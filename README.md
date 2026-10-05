@@ -123,6 +123,14 @@ A key contribution of this project was applying a **systematic QA lens** to the 
 
 ---
 
+## Automated QA Suite
+
+The [`qa-suite/`](qa-suite/) folder contains an automated evaluation suite for a Langflow version of the tracker: a 27-case golden dataset, keyword checks, a **Claude LLM-as-judge** that scores correctness, grounding, and scope, repeat-run flakiness measurement, and judge validation against hand labels.
+
+**Highlights:** 6 defects found (2 prompt bugs fixed and confirmed with a regression run); the LLM judge found twice as many bugs as keyword checks; one question passed 100% of keyword checks while its supporting numbers were wrong in every run. See [qa-suite/README.md](qa-suite/README.md) for full results.
+
+---
+
 ## Relevance to AI/ML Quality Engineering
 
 This project demonstrates several skills central to AI QA and reliability engineering:
