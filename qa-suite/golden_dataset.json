@@ -1,6 +1,6 @@
 {
   "source_file": "fake_investment_pipeline_unique_companies.csv",
-  "num_cases": 27,
+  "num_cases": 33,
   "cases": [
     {
       "id": "lookup_01",
@@ -509,6 +509,216 @@
       ],
       "must_not_contain": [],
       "notes": "Correct answers may mention and reject $10B, so no must_not_contain; the judge checks it."
+    },
+    {
+      "id": "debt_01",
+      "category": "debt_lookup",
+      "question": "What is the interest rate on Pioneer Dynamics' debt?",
+      "expected_answer": "Floating: SOFR + 475 bps (SOFR + 4.75%).",
+      "must_contain": [
+        [
+          "SOFR"
+        ],
+        [
+          "475",
+          "4.75"
+        ]
+      ],
+      "must_not_contain": [],
+      "notes": "Computed from deals_with_debt.csv. Checks the model reads the spread column and keeps it tied to SOFR."
+    },
+    {
+      "id": "debt_02",
+      "category": "debt_filter",
+      "question": "Which deals have debt maturing before 2030?",
+      "expected_answer": "Nova Analytics, Zenith AI, Cobalt Health, Pulse Networks, Lumen Robotics, Nova Platform, Pioneer Energy, Blue Networks (8 deals).",
+      "must_contain": [
+        [
+          "Nova Analytics"
+        ],
+        [
+          "Zenith AI"
+        ],
+        [
+          "Cobalt Health"
+        ],
+        [
+          "Pulse Networks"
+        ],
+        [
+          "Lumen Robotics"
+        ],
+        [
+          "Nova Platform"
+        ],
+        [
+          "Pioneer Energy"
+        ],
+        [
+          "Blue Networks"
+        ]
+      ],
+      "must_not_contain": [
+        [
+          "Lumen Ventures"
+        ],
+        [
+          "Summit Solutions"
+        ],
+        [
+          "Fusion Platform"
+        ],
+        [
+          "Nova Solutions"
+        ],
+        [
+          "Nimbus Cloud"
+        ],
+        [
+          "Orion Solutions"
+        ]
+      ],
+      "notes": "Computed from deals_with_debt.csv. Boundary trap: deals maturing IN 2030 must be left out."
+    },
+    {
+      "id": "debt_03",
+      "category": "debt_filter",
+      "question": "Which deals have fixed-rate debt?",
+      "expected_answer": "Zenith AI, Pioneer Solutions, Cobalt Health, Summit Solutions, Aurora Cloud, Cascade AI, Lumen Robotics, Nova Platform, Pioneer Energy, Nimbus Cloud, Strata Tech (11 deals).",
+      "must_contain": [
+        [
+          "Zenith AI"
+        ],
+        [
+          "Pioneer Solutions"
+        ],
+        [
+          "Cobalt Health"
+        ],
+        [
+          "Summit Solutions"
+        ],
+        [
+          "Aurora Cloud"
+        ],
+        [
+          "Cascade AI"
+        ],
+        [
+          "Lumen Robotics"
+        ],
+        [
+          "Nova Platform"
+        ],
+        [
+          "Pioneer Energy"
+        ],
+        [
+          "Nimbus Cloud"
+        ],
+        [
+          "Strata Tech"
+        ]
+      ],
+      "must_not_contain": [
+        [
+          "Nova Analytics"
+        ],
+        [
+          "Lumen Ventures"
+        ],
+        [
+          "Zenith Labs"
+        ],
+        [
+          "Pioneer Dynamics"
+        ],
+        [
+          "Apex Software"
+        ],
+        [
+          "Quantum Analytics"
+        ],
+        [
+          "Quantum Robotics"
+        ],
+        [
+          "Pulse Networks"
+        ],
+        [
+          "Fusion Platform"
+        ],
+        [
+          "Nova Solutions"
+        ],
+        [
+          "Blue Networks"
+        ],
+        [
+          "Orion Solutions"
+        ],
+        [
+          "Cascade Ventures"
+        ]
+      ],
+      "notes": "Computed from deals_with_debt.csv. No floating-rate deal may appear in the list."
+    },
+    {
+      "id": "debt_04",
+      "category": "debt_aggregation",
+      "question": "What is the total debt amount across all deals?",
+      "expected_answer": "$350,000,000 across 24 deals with debt.",
+      "must_contain": [
+        [
+          "350,000,000",
+          "350000000",
+          "350 million",
+          "$350M",
+          "350M"
+        ]
+      ],
+      "must_not_contain": [],
+      "notes": "Computed from deals_with_debt.csv. Sum of DebtAmountUSD; deals with no debt count as 0."
+    },
+    {
+      "id": "debt_05",
+      "category": "debt_calculation",
+      "question": "If SOFR is 4.30%, what is the all-in interest rate on Apex Software's loan?",
+      "expected_answer": "4.30% + 425 bps (4.25%) = 8.55%.",
+      "must_contain": [
+        [
+          "8.55"
+        ]
+      ],
+      "must_not_contain": [
+        [
+          "429.30"
+        ],
+        [
+          "429.3%"
+        ]
+      ],
+      "notes": "Computed from deals_with_debt.csv. Unit trap: 425 bps is 4.25%, not 425%."
+    },
+    {
+      "id": "debt_06",
+      "category": "not_in_data",
+      "question": "What is the current market price of Zenith Labs' loan?",
+      "expected_answer": "Not in the data: the tracker has no market prices.",
+      "must_contain": [
+        [
+          "not in the data",
+          "isn't in the data",
+          "not available",
+          "no information",
+          "does not",
+          "doesn't",
+          "not included",
+          "not provided"
+        ]
+      ],
+      "must_not_contain": [],
+      "notes": "Computed from deals_with_debt.csv. No price column exists; any number would be made up."
     }
   ]
 }
