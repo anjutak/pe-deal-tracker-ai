@@ -9,6 +9,7 @@ An automated test suite for an LLM-powered **private-equity deal tracker**, buil
 - **The judge was validated against hand labels.** Raw agreement was 9/12. When each disagreement was checked against the source data, the judge was right in all three cases.
 - **Adding 6 debt columns to the data broke 6 old questions that had nothing to do with debt.** Each passed 5/5 on the old data and 0–4/5 on the new data, in a controlled side-by-side run. [Details below](#extension-adding-debt-financing-data).
 - **The regression gate blocked two prompt changes** that each fixed one problem but broke others (v3: 4 cases broken).
+- **DeepEval's standard metrics missed this app's real bugs.** On the same 33 answers, Answer Relevancy caught 0 of the judge's 11 failures, and Faithfulness missed every "left a company out" bug. Only a GEval metric with app-specific criteria matched the judge (33/33). [Details](#comparing-with-deepeval).
 
 ---
 
@@ -180,6 +181,29 @@ NEWLY BROKEN  (passed every time before, fails now): 6
 - `--fail-on-regression` exits with code 1, so it can block a change in CI.
 - It is tested itself: [`selftests/test_compare_runs.py`](selftests/test_compare_runs.py).
 
+### Comparing with DeepEval
+
+[`deepeval_check.py`](deepeval_check.py) re-scores the **33 saved answers** from the full run with three [DeepEval](https://github.com/confident-ai/deepeval) metrics (Claude as the evaluation model), with no new calls to the flow. Then it compares each verdict with the validated Claude judge.
+
+| DeepEval metric | Caught the judge's 11 failures | False alarms on the 22 correct answers |
+|---|---|---|
+| **Correctness**: GEval with criteria written for this app (every name, number and count must match; no missing or extra items; refusals only when the data has no answer) | **11 / 11** | **0** |
+| **Faithfulness**: are the answer's claims supported by the data? | 1 of the 7 it could score | 3–4: correct "the answer isn't in the data" replies scored **0.00** |
+| **Answer Relevancy**: does the answer address the question? | **0 / 11** (wrong answers scored 1.00) | 2: a correct refusal to write a poem (`scope_02`) scored **0.00** |
+
+**What this shows**
+- **The standard metrics test the wrong things for this app.** Faithfulness checks that every claim in an answer is supported, so an answer that **leaves a company out** looks perfectly faithful (`filter_02`, `filter_04`, and `debt_02` all scored 1.00). Relevancy checks topic, not truth.
+- **They penalize correct behavior.** Declining to answer when the data has no answer is the *right* behavior, but both metrics scored it as a failure.
+- **The value is in defining "correct," not in the tool.** DeepEval matched the judge only with custom GEval criteria, which are the same rules the judge already uses.
+- **The eval tool is non-deterministic too.** The same answer (`lookup_05`) scored 0.00 on Faithfulness in one run and 1.00 in the next.
+
+**Problems found while setting it up**, each one fixed and covered in the script's comments:
+- **Faithfulness can't take the whole table.** It first lists every fact in its context. 50 rows × 16 columns is about 800 facts, more than fits in one model reply, so the reply was cut off and the JSON was invalid. It now gets only the rows of companies named in the question or answer. It is skipped (n/a) when no company is named or more than 12 are, which covers totals and refusals.
+- **A metric that errors once keeps failing.** DeepEval's `is_successful()` stays `False` after one error, even for later perfect scores. In the first run, this made 6 correct answers look like failures. The script now creates fresh metric objects for every answer.
+- **Rate limits and credits:** the run stopped when the API credits ran out. `--resume` redoes only the answers that errored.
+
+**Data caveat:** the table combines two runs. The first run scored all 33 answers. Its Correctness and Relevancy results are unaffected by the metric bug above, and its Faithfulness *scores* are valid, but its pass/fail marks after the first error are not. A second run with the fix re-scored the first 14 answers and agreed on every Correctness and Relevancy verdict. It stopped when the API credits ran out.
+
 ### How AI tools were used
 
 This extension was built with Claude as a coding assistant. Claude drafted the data and test-case generators, the self-tests, `compare_runs.py`, and the prompt variants. I ran everything against the live flow, reviewed the results, and made the calls. Things the AI-assisted process got wrong or missed, and how they were caught:
@@ -196,6 +220,7 @@ This extension was built with Claude as a coding assistant. Claude drafted the d
 5. **Infrastructure failures can look like quality failures.** When the Gemini free-tier quota ran out, Langflow returned **HTTP 500** instead of 429. The harness reads the error text to detect this, reports it as **ERROR** (infrastructure) rather than **FAILED** (wrong answer), and stops instead of retrying a quota that won't recover.
 6. **A new feature can break old features without touching them.** Adding 6 debt columns made 6 unrelated questions fail (5/5 → 0–4/5). Only a full regression run, confirmed by a controlled old-vs-new comparison, showed it.
 7. **A prompt fix needs the same regression check as a code fix.** Two reasonable-looking prompt changes each fixed one thing and broke others. Without the check, either would have shipped.
+8. **Off-the-shelf eval metrics need to be validated like anything else.** DeepEval's Faithfulness and Relevancy missed omissions and penalized correct refusals. A metric is only as good as its definition of "correct" for the app.
 
 ## Design decisions
 
@@ -235,6 +260,7 @@ You need the Langflow flow running, with a Langflow API key (Settings → Langfl
 | `pytest -v -rA --html=report.html --self-contained-html` | Same, with an HTML report |
 | `python run_repeats.py --runs 5 --only math ambig` | Pass rates over repeated runs (add `--judge` to score each run) |
 | `python compare_judge.py` | Agreement between your labels (`judge_labels.xlsx`) and the judge |
+| `pip install -r requirements-deepeval.txt` then `python deepeval_check.py results/judge_results.json` | Score saved answers with DeepEval and compare with the judge (`--only` to try a few cases, `--resume` to redo errors) |
 | `python compare_runs.py BEFORE.json AFTER.json` | What broke, got fixed, or still fails between two runs (add `--fail-on-regression` for CI) |
 | `python add_debt_columns.py` / `python add_debt_cases.py` | Rebuild `deals_with_debt.csv` and the 6 debt cases (both reproducible) |
 
@@ -259,6 +285,8 @@ qa-suite/
 ├── run_repeats.py         # flakiness: pass rates over repeated runs
 ├── compare_judge.py       # judge vs. human-label agreement (incl. Cohen's kappa)
 ├── compare_runs.py        # regression report between two runs
+├── deepeval_check.py      # DeepEval metrics on saved answers vs. the judge
+├── requirements-deepeval.txt  # optional extra dependency (kept out of CI)
 ├── add_debt_columns.py    # builds deals_with_debt.csv
 ├── add_debt_cases.py      # adds the 6 debt cases to the golden dataset
 ├── golden_dataset.json    # 33 test cases with expected answers
